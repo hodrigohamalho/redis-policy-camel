@@ -1,0 +1,14 @@
+FROM registry.redhat.io/fuse7/fuse-java-openshift:latest
+
+USER root
+COPY target/policy-redis-camel.jar /deployments/app.jar
+COPY src/main/resources/application.properties /deployments/config/application.properties
+USER jboss
+
+ENV JAVA_APP_JAR=app.jar
+ENV AB_JOLOKIA_OFF=true
+ENV AB_PROMETHEUS_OFF=true
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-Dspring.config.location=file:/deployments/config/", "-jar", "/deployments/app.jar"]

@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+type: Opaque
+stringData:
+  redis-password: your_secure_password
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-policy-camel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-policy-camel
+  template:
+    metadata:
+      labels:
+        app: redis-policy-camel
+    spec:
+      containers:
+      - name: camel-policy
+        image: quay.io/seu_usuario/redis-policy-camel:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: redis.host
+          value: "redis"
+        - name: redis.port
+          value: "6379"
+        - name: redis.password
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-policy-camel
+spec:
+  selector:
+    app: redis-policy-camel
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

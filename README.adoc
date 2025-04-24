@@ -1,0 +1,112 @@
+
+= Redis Policy para 3scale com Apache Camel
+:author: Rodrigo Ramalho
+:revdate: 2025-04-17
+:icons: font
+
+Este repositório contém uma implementação de uma Custom Policy para o Red Hat 3scale, utilizando Apache Camel para realizar verificação de autorização com base em valores armazenados no Redis.
+
+== 📦 Componentes
+
+- Apache Camel (baseado em Fuse)
+- Redis (como cache de controle)
+- OpenShift (deployment)
+- 3scale APIcast (como gateway principal)
+
+== ⚙️ Funcionamento
+
+Esta policy expõe um endpoint HTTP REST que:
+
+1. Recebe uma requisição com uma chave (`?key=xyz`)
+2. Consulta o Redis para verificar se a chave existe
+3. Autoriza ou bloqueia a requisição com base no resultado da consulta
+
+== 🔐 Autenticação no Redis
+
+A conexão com Redis é autenticada usando senha (`REDIS_PASSWORD`), que é passada via Secret no OpenShift.
+
+== 🚀 Deploy no OpenShift
+
+1. Substitua `your_secure_password` no arquivo `deployment.redis-policy-camel.yaml` com sua senha real.
+2. Suba a imagem para um registro acessível:
++
+[source,bash]
+----
+podman build -t redis-policy-camel:latest -f Dockerfile.camel.redis.policy .
+podman push redis-policy-camel:latest quay.io/seu_usuario/redis-policy-camel:latest
+----
+3. Aplique o deployment no OpenShift:
++
+[source,bash]
+----
+oc apply -f deployment.redis-policy-camel.yaml
+----
+
+== 🔗 Integração com o 3scale
+
+1. Acesse o **Admin Portal** do 3scale
+2. Vá até `Integration > APIcast > Policies`
+3. Adicione uma Camnel policy customizada que redirecione chamadas para:
++
+`http://redis-policy-camel.policy.svc.cluster.local/policy/check?key={some-key}`
+
+== 🧪 Testando
+
+1. Testar o Proxy: salvando o IP no Redis
+
+🔹 Requisição simulada passando o parâmetro someParam=cliente123 e o IP no header:
+
++
+[source,bash]
+----
+curl -i -X GET "http://<ROTA_OPENSHIFT>/proxy?someParam=cliente123" \
+  -H "X-Forwarded-For: 203.0.113.77"
+----
+
+➡️ Isso vai salvar no Redis:
+
++
+[source,bash]
+----
+Chave: user-ip:cliente123
+Valor: 203.0.113.77
+----
+
+🧪 2. Listar todas as chaves salvas no Redis (modo admin)
+
+🔹 Ver todas as chaves do tipo user-ip:*:
+
++
+[source,bash]
+----
+curl -i http://<ROTA_OPENSHIFT>/admin/keys
+----
+
+➡️ Esperado (exemplo):
++
+`["user-ip:cliente123", "user-ip:cliente456"]`
+
+🧪 3. Obter o valor de uma chave específica
+
+🔹 Consultar a chave user-ip:cliente123:
+
++
+[source,bash]
+----
+curl -i http://<ROTA_OPENSHIFT>/admin/keys/cliente123
+----
+
+➡️ Esperado:
++ 
+`Valor: 203.0.113.77` 
+
+== 📁 Estrutura do repositório
+
+[source,text]
+----
+.
+├── Dockerfile.camel.redis.policy
+├── deployment.redis-policy-camel.yaml
+├── src/
+│   └── main/java/com/redhat/threescale/policy/RedisPolicyRoute.java
+----
