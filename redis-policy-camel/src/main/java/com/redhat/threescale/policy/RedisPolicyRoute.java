@@ -1,4 +1,3 @@
-// Adaptado para usar Camel Proxy (como exemplo do 3scale) com integração Redis
 package com.redhat.threescale.policy;
 
 import org.apache.camel.Exchange;
